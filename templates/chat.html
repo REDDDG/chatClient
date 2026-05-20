@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Chat Example</title>
+
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            background: gray;
+        }
+
+        #log {
+            flex: 1;
+
+            background: white;
+            padding: 0.5em;
+
+            overflow: auto;
+            box-sizing: border-box;
+        }
+
+        #form {
+            display: flex;
+            gap: 0.5em;
+
+            width: 100%;
+            padding: 0.5em;
+
+            box-sizing: border-box;
+            background: gray;
+        }
+
+        #msg {
+            flex: 1;
+
+            resize: none;
+            overflow: auto;
+
+            padding: 0.5em;
+            font-size: 1em;
+
+            box-sizing: border-box;
+        }
+
+        input[type="submit"] {
+            width: 5%;
+        }
+    </style>
+
+    <script>
+        window.onload = function () {
+            var conn;
+            var msg = document.getElementById("msg");
+            var log = document.getElementById("log");
+            msg.addEventListener("keydown", function (evt) {
+
+                // Ctrl + Enter
+                if (evt.ctrlKey && evt.key === "Enter") {
+
+                    // 阻止默认行为
+                    evt.preventDefault();
+
+                    // 触发表单提交
+                    document.getElementById("form").requestSubmit();
+                }
+            });
+            function appendLog(item) {
+                var doScroll =
+                    log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+
+                log.appendChild(item);
+
+                if (doScroll) {
+                    log.scrollTop = log.scrollHeight - log.clientHeight;
+                }
+            }
+
+            document.getElementById("form").onsubmit = function () {
+                if (!conn) {
+                    return false;
+                }
+
+                if (!msg.value.trim()){
+                    return false;
+                }
+                if(msg.value.length>512){
+                    alert("输入字节不得超过512个字符")
+                    return false;
+                }
+                conn.send(msg.value);
+                msg.value = "";
+
+                return false;
+            };
+
+            if (window["WebSocket"]) {
+                conn = new WebSocket(
+                    "ws://" + document.location.host + "/ws"
+                );
+
+                conn.onclose = function () {
+                    var item = document.createElement("div");
+                    item.innerHTML = "<b>Connection closed.</b>";
+                    appendLog(item);
+                };
+
+                conn.onmessage = function (evt) {
+                    var messages = evt.data.split("\n");
+
+                    for (var i = 0; i < messages.length; i++) {
+                        var item = document.createElement("div");
+
+                        item.innerText = messages[i];
+                        item.style.whiteSpace = "pre-wrap";
+
+                        appendLog(item);
+                    }
+                };
+            } else {
+                var item = document.createElement("div");
+                item.innerHTML =
+                    "<b>Your browser does not support WebSockets.</b>";
+
+                appendLog(item);
+            }
+        };
+    </script>
+</head>
+
+<body>
+<div id="log"></div>
+
+<form id="form">
+    <textarea id="msg" rows="3" autofocus></textarea>
+    <input type="submit" value="Send" />
+</form>
+</body>
+</html>
