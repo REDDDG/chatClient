@@ -139,6 +139,25 @@ func main() {
 			})
 			c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 		})
+		api.GET("/friends", func(c *gin.Context) {
+			session := sessions.Default(c)
+			id := session.Get("id")
+			if id == nil {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "login failed"})
+			}
+			rows, err := db.QueryContext(c.Request.Context(), "select friendid from chatfriends where userid = ?", id)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+			}
+			var friends []Friends
+			defer rows.Close()
+			for rows.Next() {
+				var friendId int
+				rows.Scan(&friendId)
+				friends = append(friends, Friends{FriendId: friendId})
+			}
+			c.JSON(http.StatusOK, gin.H{"friends": friends})
+		})
 	}
 
 	router.Run(":9090")

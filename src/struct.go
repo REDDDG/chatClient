@@ -9,3 +9,8 @@ type Message struct {
 	Id      int    `json:"id"`
 	Content string `json:"text"`
 }
+
+type Friends struct {
+	FriendId int    `json:"friendId"`
+	Username string `json:"username"`
+}
