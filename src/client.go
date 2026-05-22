@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -35,11 +36,21 @@ type Client struct {
 	conn *websocket.Conn
 
 	send chan []byte
+
+	id int
+
+	roomList []int
 }
 
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
+		for _, roomId := range c.roomList {
+			delete(c.hub.clientRoom[roomId], c)
+			if (len(c.hub.clientRoom[roomId])) == 0 {
+				delete(c.hub.clientRoom, roomId)
+			}
+		}
 		c.conn.Close()
 	}()
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -93,8 +104,37 @@ func serveWs(hub *Hub, c *gin.Context) {
 		log.Println(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte)}
+	session := sessions.Default(c)
+	userId := session.Get("id").(int)
+	rows, err := db.QueryContext(c.Request.Context(), "select roomId from chatfriends where userId =?", userId)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	client := &Client{hub: hub, conn: conn, send: make(chan []byte), id: userId, roomList: make([]int, 0)}
 	client.hub.register <- client
+	for rows.Next() {
+		var roomId int
+		rows.Scan(&roomId)
+		client.roomList = append(client.roomList, roomId)
+	}
+	rows, err = db.QueryContext(c.Request.Context(), "select roomId from userhave where userId =?", userId)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	for rows.Next() {
+		var roomId int
+		rows.Scan(&roomId)
+		client.roomList = append(client.roomList, roomId)
+	}
+	for _, roomId := range client.roomList {
+		if client.hub.clientRoom[roomId] == nil {
+			client.hub.clientRoom[roomId] = make(map[*Client]bool)
+		}
+		client.hub.clientRoom[roomId][client] = true
+	}
+	client.roomList = nil
 	go client.readPump()
 	go client.writePump()
 }

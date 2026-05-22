@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
@@ -14,6 +13,8 @@ import (
 )
 
 func main() {
+	InitDB()
+	defer db.Close()
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:8080", "http://10.166.91.254:8080"},
@@ -29,19 +30,6 @@ func main() {
 	router.GET("/ws", func(c *gin.Context) {
 		serveWs(hub, c)
 	})
-	dsn := "root:mysql12138@tcp(localhost:3306)/goland"
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-	if err := db.Ping(); err != nil {
-		log.Fatal(err)
-	}
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(10)
-	db.SetConnMaxIdleTime(5 * time.Minute)
-	db.SetConnMaxLifetime(10 * time.Minute)
 	{
 		api := router.Group("/api")
 		api.POST("/register", func(c *gin.Context) {

@@ -6,8 +6,10 @@ type User struct {
 }
 
 type Message struct {
-	Id      int    `json:"id"`
-	Content string `json:"text"`
+	RoomID     int    `json:"roomId"`
+	SenderID   int    `json:"senderId"`
+	SenderName string `json:"senderName"`
+	Text       string `json:"text"`
 }
 
 type Friends struct {

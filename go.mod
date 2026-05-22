@@ -1,4 +1,4 @@
-module awesomeProject
+module chatClient
 
 go 1.26.3
 
