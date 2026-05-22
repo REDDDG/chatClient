@@ -17,3 +17,8 @@ type Friends struct {
 	RoomId     int    `json:"roomId"`
 	FriendName string `json:"friendName"`
 }
+
+type Rooms struct {
+	RoomId   int    `json:"roomId"`
+	RoomName string `json:"roomName"`
+}

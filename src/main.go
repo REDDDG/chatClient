@@ -127,7 +127,7 @@ func main() {
 			})
 			c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 		})
-		api.GET("/friends", func(c *gin.Context) {
+		api.GET("/rooms", func(c *gin.Context) {
 			session := sessions.Default(c)
 			id := session.Get("id")
 			log.Println(id)
@@ -150,7 +150,21 @@ func main() {
 					FriendId: friendId, RoomId: roomId, FriendName: friendName,
 				})
 			}
-			c.JSON(http.StatusOK, gin.H{"friends": friends})
+			var rooms []Rooms
+			rows, err = db.QueryContext(c.Request.Context(), "select roomId,roomName from userhave where userId = ?", id)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+			}
+			for rows.Next() {
+				var roomId int
+				var roomName string
+				rows.Scan(&roomId, &roomName)
+
+				rooms = append(rooms, Rooms{
+					RoomId: roomId, RoomName: roomName,
+				})
+			}
+			c.JSON(http.StatusOK, gin.H{"friends": friends, "rooms": rooms})
 		})
 	}
 
