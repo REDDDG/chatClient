@@ -134,7 +134,7 @@ func main() {
 			if id == nil {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "login failed"})
 			}
-			rows, err := db.QueryContext(c.Request.Context(), "select roomId,friendId from chatfriends where userid = ?", id)
+			rows, err := db.QueryContext(c.Request.Context(), "select roomId,friendId,friendName from chatfriends where userid = ?", id)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 			}
@@ -143,9 +143,11 @@ func main() {
 			for rows.Next() {
 				var friendId int
 				var roomId int
-				rows.Scan(&roomId, &friendId)
+				var friendName string
+				rows.Scan(&roomId, &friendId, &friendName)
+
 				friends = append(friends, Friends{
-					FriendId: friendId, RoomId: roomId,
+					FriendId: friendId, RoomId: roomId, FriendName: friendName,
 				})
 			}
 			c.JSON(http.StatusOK, gin.H{"friends": friends})

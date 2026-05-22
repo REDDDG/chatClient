@@ -13,6 +13,7 @@ type Message struct {
 }
 
 type Friends struct {
-	FriendId int `json:"friendId"`
-	RoomId   int `json:"roomId"`
+	FriendId   int    `json:"friendId"`
+	RoomId     int    `json:"roomId"`
+	FriendName string `json:"friendName"`
 }
