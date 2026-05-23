@@ -6,9 +6,14 @@ import (
 	"sync"
 )
 
+type broadcastMsg struct {
+	client  *Client
+	message []byte
+}
+
 type Hub struct {
 	clients    map[*Client]bool
-	broadcast  chan []byte
+	broadcast  chan broadcastMsg
 	register   chan *Client
 	unregister chan *Client
 	clientRoom map[int]map[*Client]bool
@@ -20,7 +25,7 @@ func newHub() *Hub {
 		clients:    make(map[*Client]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		broadcast:  make(chan []byte),
+		broadcast:  make(chan broadcastMsg),
 		clientRoom: make(map[int]map[*Client]bool),
 	}
 }
@@ -33,11 +38,22 @@ func (h *Hub) run() {
 		case client := <-h.unregister:
 			delete(h.clients, client)
 			close(client.send)
-		case message := <-h.broadcast:
+		case bm := <-h.broadcast:
 			var msg Message
-			err := json.Unmarshal(message, &msg)
+			err := json.Unmarshal(bm.message, &msg)
 			if err != nil {
 				log.Println("error:", err)
+				continue
+			}
+			allowed := false
+			for _, roomId := range bm.client.roomList {
+				if roomId == msg.RoomID {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				log.Printf("client %d attempted to send to unauthorized room %d", bm.client.id, msg.RoomID)
 				continue
 			}
 			h.mu.RLock()
@@ -49,7 +65,7 @@ func (h *Hub) run() {
 			h.mu.RUnlock()
 			for _, client := range clients {
 				select {
-				case client.send <- message:
+				case client.send <- bm.message:
 				default:
 					h.mu.Lock()
 					for _, roomId := range client.roomList {

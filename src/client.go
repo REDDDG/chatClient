@@ -70,7 +70,7 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		c.hub.broadcast <- message
+		c.hub.broadcast <- broadcastMsg{client: c, message: message}
 	}
 }
 
