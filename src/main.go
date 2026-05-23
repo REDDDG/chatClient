@@ -109,6 +109,7 @@ func main() {
 			id := session.Get("id")
 			if id == nil {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "login failed"})
+				return
 			}
 			var username string
 			db.QueryRowContext(c.Request.Context(), "select username from user where id = ?", id).Scan(&username)
@@ -133,10 +134,12 @@ func main() {
 			log.Println(id)
 			if id == nil {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "login failed"})
+				return
 			}
 			rows, err := db.QueryContext(c.Request.Context(), "select roomId,friendId,friendName from chatfriends where userid = ?", id)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+				return
 			}
 			var friends []Friends
 			defer rows.Close()
@@ -154,6 +157,7 @@ func main() {
 			rows, err = db.QueryContext(c.Request.Context(), "select roomId,roomName from userhave where userId = ?", id)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+				return
 			}
 			for rows.Next() {
 				var roomId int
