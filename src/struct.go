@@ -1,5 +1,11 @@
 package main
 
+import (
+	"sync"
+
+	"github.com/gorilla/websocket"
+)
+
 type User struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -21,4 +27,30 @@ type Friends struct {
 type Rooms struct {
 	RoomId   int    `json:"roomId"`
 	RoomName string `json:"roomName"`
+}
+
+type broadcastMsg struct {
+	client  *Client
+	message []byte
+}
+
+type Hub struct {
+	clients    map[*Client]bool
+	broadcast  chan broadcastMsg
+	register   chan *Client
+	unregister chan *Client
+	clientRoom map[int]map[*Client]bool
+	mu         sync.RWMutex
+}
+
+type Client struct {
+	hub *Hub
+
+	conn *websocket.Conn
+
+	send chan []byte
+
+	id int
+
+	roomList []int
 }

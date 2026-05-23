@@ -3,22 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
-	"sync"
 )
-
-type broadcastMsg struct {
-	client  *Client
-	message []byte
-}
-
-type Hub struct {
-	clients    map[*Client]bool
-	broadcast  chan broadcastMsg
-	register   chan *Client
-	unregister chan *Client
-	clientRoom map[int]map[*Client]bool
-	mu         sync.RWMutex
-}
 
 func newHub() *Hub {
 	return &Hub{

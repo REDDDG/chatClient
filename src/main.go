@@ -34,10 +34,6 @@ func main() {
 	{
 		api := router.Group("/api")
 		api.POST("/register", func(c *gin.Context) {
-			type User struct {
-				Username string `json:"username"`
-				Password string `json:"password"`
-			}
 			var req User
 			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})

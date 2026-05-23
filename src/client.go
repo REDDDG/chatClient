@@ -30,18 +30,6 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type Client struct {
-	hub *Hub
-
-	conn *websocket.Conn
-
-	send chan []byte
-
-	id int
-
-	roomList []int
-}
-
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
