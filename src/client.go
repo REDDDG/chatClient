@@ -51,6 +51,7 @@ func (c *Client) readPump() {
 				delete(c.hub.clientRoom, roomId)
 			}
 		}
+		c.roomList = nil
 		c.conn.Close()
 	}()
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -105,7 +106,12 @@ func serveWs(hub *Hub, c *gin.Context) {
 		return
 	}
 	session := sessions.Default(c)
-	userId := session.Get("id").(int)
+	userId, ok := session.Get("id").(int)
+	if !ok {
+		log.Println("user not authenticated")
+		conn.Close()
+		return
+	}
 	rows, err := db.QueryContext(c.Request.Context(), "select roomId from chatfriends where userId =?", userId)
 	if err != nil {
 		log.Println(err)
@@ -134,7 +140,6 @@ func serveWs(hub *Hub, c *gin.Context) {
 		}
 		client.hub.clientRoom[roomId][client] = true
 	}
-	client.roomList = nil
 	go client.readPump()
 	go client.writePump()
 }
