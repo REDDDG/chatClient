@@ -49,6 +49,10 @@ func main() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "user exist"})
 				return
 			}
+			if err != sql.ErrNoRows {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+				return
+			}
 			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
@@ -123,7 +127,10 @@ func main() {
 				return
 			}
 			var username string
-			db.QueryRowContext(c.Request.Context(), "select username from user where id = ?", id).Scan(&username)
+			if err := db.QueryRowContext(c.Request.Context(), "select username from user where id = ?", id).Scan(&username); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+				return
+			}
 			c.JSON(http.StatusOK, gin.H{"username": username, "id": id})
 		})
 		api.POST("/logout", func(c *gin.Context) {
