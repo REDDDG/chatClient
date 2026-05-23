@@ -10,6 +10,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -48,7 +49,12 @@ func main() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "user exist"})
 				return
 			}
-			result, err := db.ExecContext(c.Request.Context(), "INSERT INTO user(username,password) VALUES(?,?)", req.Username, req.Password)
+			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
+				return
+			}
+			result, err := db.ExecContext(c.Request.Context(), "INSERT INTO user(username,password) VALUES(?,?)", req.Username, string(hashedPassword))
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "insert failed"})
 				return
@@ -82,14 +88,19 @@ func main() {
 				return
 			}
 			var id int
+			var hashedPassword string
 			session := sessions.Default(c)
-			err := db.QueryRowContext(c.Request.Context(), "select id from user where username = ? and password =?", req.Username, req.Password).Scan(&id)
+			err := db.QueryRowContext(c.Request.Context(), "select id, password from user where username = ?", req.Username).Scan(&id, &hashedPassword)
 			if err == sql.ErrNoRows {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 				return
 			}
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+				return
+			}
+			if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(req.Password)); err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 				return
 			}
 			session.Set("id", id)
