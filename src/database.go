@@ -13,19 +13,18 @@ var db *sql.DB
 func InitDB() {
 	dsn := "root:mysql12138@tcp(localhost:3306)/goland"
 
-	DB, err := sql.Open("mysql", dsn)
+	var err error
+	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := DB.Ping(); err != nil {
+	if err := db.Ping(); err != nil {
 		log.Fatal(err)
 	}
 
-	DB.SetMaxOpenConns(25)
-	DB.SetMaxIdleConns(10)
-	DB.SetConnMaxIdleTime(5 * time.Minute)
-	DB.SetConnMaxLifetime(10 * time.Minute)
-
-	db = DB
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxIdleTime(5 * time.Minute)
+	db.SetConnMaxLifetime(10 * time.Minute)
 }
