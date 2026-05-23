@@ -39,6 +39,14 @@ func main() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 				return
 			}
+			if len(req.Username) < 1 || len(req.Username) > 12 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "username must be 1-12 characters"})
+				return
+			}
+			if len(req.Password) < 4 || len(req.Password) > 20 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "password must be 4-20 characters"})
+				return
+			}
 			var tmp int
 			err := db.QueryRowContext(c.Request.Context(), "select id from user where username = ?", req.Username).Scan(&tmp)
 			if err == nil {
@@ -85,6 +93,10 @@ func main() {
 			var req User
 			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+				return
+			}
+			if len(req.Username) < 1 || len(req.Password) < 1 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "username and password required"})
 				return
 			}
 			var id int
