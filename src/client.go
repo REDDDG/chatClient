@@ -45,13 +45,15 @@ type Client struct {
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
+		c.hub.mu.Lock()
 		for _, roomId := range c.roomList {
 			delete(c.hub.clientRoom[roomId], c)
-			if (len(c.hub.clientRoom[roomId])) == 0 {
+			if len(c.hub.clientRoom[roomId]) == 0 {
 				delete(c.hub.clientRoom, roomId)
 			}
 		}
 		c.roomList = nil
+		c.hub.mu.Unlock()
 		c.conn.Close()
 	}()
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -68,7 +70,6 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		//message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 		c.hub.broadcast <- message
 	}
 }
@@ -124,6 +125,7 @@ func serveWs(hub *Hub, c *gin.Context) {
 		rows.Scan(&roomId)
 		client.roomList = append(client.roomList, roomId)
 	}
+	rows.Close()
 	rows, err = db.QueryContext(c.Request.Context(), "select roomId from userhave where userId =?", userId)
 	if err != nil {
 		log.Println(err)
@@ -134,12 +136,15 @@ func serveWs(hub *Hub, c *gin.Context) {
 		rows.Scan(&roomId)
 		client.roomList = append(client.roomList, roomId)
 	}
+	rows.Close()
+	hub.mu.Lock()
 	for _, roomId := range client.roomList {
-		if client.hub.clientRoom[roomId] == nil {
-			client.hub.clientRoom[roomId] = make(map[*Client]bool)
+		if hub.clientRoom[roomId] == nil {
+			hub.clientRoom[roomId] = make(map[*Client]bool)
 		}
-		client.hub.clientRoom[roomId][client] = true
+		hub.clientRoom[roomId][client] = true
 	}
+	hub.mu.Unlock()
 	go client.readPump()
 	go client.writePump()
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"sync"
 )
 
 type Hub struct {
@@ -11,6 +12,7 @@ type Hub struct {
 	register   chan *Client
 	unregister chan *Client
 	clientRoom map[int]map[*Client]bool
+	mu         sync.RWMutex
 }
 
 func newHub() *Hub {
@@ -38,17 +40,26 @@ func (h *Hub) run() {
 				log.Println("error:", err)
 				continue
 			}
-			for client := range h.clientRoom[msg.RoomID] {
+			h.mu.RLock()
+			roomClients := h.clientRoom[msg.RoomID]
+			clients := make([]*Client, 0, len(roomClients))
+			for client := range roomClients {
+				clients = append(clients, client)
+			}
+			h.mu.RUnlock()
+			for _, client := range clients {
 				select {
 				case client.send <- message:
 				default:
+					h.mu.Lock()
 					for _, roomId := range client.roomList {
 						delete(client.hub.clientRoom[roomId], client)
-						if (len(client.hub.clientRoom[roomId])) == 0 {
+						if len(client.hub.clientRoom[roomId]) == 0 {
 							delete(client.hub.clientRoom, roomId)
 						}
 					}
 					client.roomList = nil
+					h.mu.Unlock()
 					delete(h.clients, client)
 					close(client.send)
 				}
