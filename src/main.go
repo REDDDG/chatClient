@@ -74,8 +74,7 @@ func main() {
 			}
 			session := sessions.Default(c)
 
-			session.Set("id", id)
-
+			session.Set("id", int(id))
 			session.Options(sessions.Options{
 				Path:     "/",
 				MaxAge:   3600 * 24,
@@ -145,13 +144,6 @@ func main() {
 			session := sessions.Default(c)
 			session.Clear()
 			session.Save()
-			session.Options(sessions.Options{
-				Path:     "/",
-				MaxAge:   -1,
-				HttpOnly: true,
-				Secure:   true,
-				SameSite: http.SameSiteNoneMode,
-			})
 			c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 		})
 		api.GET("/rooms", func(c *gin.Context) {
