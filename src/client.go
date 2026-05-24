@@ -32,7 +32,6 @@ var upgrader = websocket.Upgrader{
 
 func (c *Client) readPump() {
 	defer func() {
-		c.hub.unregister <- c
 		c.hub.mu.Lock()
 		for _, roomId := range c.roomList {
 			delete(c.hub.clientRoom[roomId], c)
@@ -42,6 +41,7 @@ func (c *Client) readPump() {
 		}
 		c.roomList = nil
 		c.hub.mu.Unlock()
+		c.hub.unregister <- c
 		c.conn.Close()
 	}()
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
