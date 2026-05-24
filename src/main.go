@@ -270,43 +270,21 @@ func main() {
 			}
 			c.JSON(http.StatusOK, gin.H{"messages": messages})
 		})
-		api.GET("/online-status", func(c *gin.Context) {
+		api.POST("/online-status", func(c *gin.Context) {
 			session := sessions.Default(c)
-			id := session.Get("id")
-			if id == nil {
+			if session.Get("id") == nil {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "login required"})
 				return
 			}
-			// 收集所有关联用户 ID
-			userIds := make(map[int]bool)
-			// 好友
-			rows, err := db.QueryContext(c.Request.Context(), "SELECT friendId FROM chatfriends WHERE userId = ?", id)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+			var req struct {
+				Ids []int `json:"ids"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 				return
 			}
-			for rows.Next() {
-				var fid int
-				rows.Scan(&fid)
-				userIds[fid] = true
-			}
-			rows.Close()
-			// 同群成员
-			rows, err = db.QueryContext(c.Request.Context(),
-				"SELECT userId FROM userhave WHERE roomId IN (SELECT roomId FROM userhave WHERE userId = ?)", id)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
-				return
-			}
-			for rows.Next() {
-				var uid int
-				rows.Scan(&uid)
-				userIds[uid] = true
-			}
-			rows.Close()
-			// 逐条检查 Redis 在线状态
 			online := make(map[int]bool)
-			for uid := range userIds {
+			for _, uid := range req.Ids {
 				n, err := rdb.Exists(c.Request.Context(), fmt.Sprintf("online:%d", uid)).Result()
 				if err != nil {
 					online[uid] = false

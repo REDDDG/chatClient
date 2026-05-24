@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-contrib/sessions"
@@ -45,7 +45,7 @@ func (c *Client) readPump() {
 		c.hub.mu.Unlock()
 		c.hub.unregister <- c
 		c.conn.Close()
-		rdb.Del(context.Background(), fmt.Sprintf("online:%d", c.id))
+		rdb.Del(context.Background(), strconv.Itoa(c.id))
 	}()
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetReadLimit(maxMessageSize)
@@ -148,14 +148,14 @@ func serveWs(hub *Hub, c *gin.Context) {
 	go client.readPump()
 	go client.writePump()
 	// 设置在线状态，每 30s 刷新 TTL
-	rdb.Set(context.Background(), fmt.Sprintf("online:%d", client.id), "1", 60*time.Second)
+	rdb.Set(context.Background(), strconv.Itoa(client.id), "1", 60*time.Second)
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				rdb.Expire(context.Background(), fmt.Sprintf("online:%d", client.id), 60*time.Second)
+				rdb.Expire(context.Background(), strconv.Itoa(client.id), 60*time.Second)
 			case _, ok := <-client.send:
 				if !ok {
 					return
