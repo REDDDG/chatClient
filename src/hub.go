@@ -63,6 +63,9 @@ func (h *Hub) run() {
 			}
 			h.mu.RUnlock()
 			for _, client := range clients {
+				if client == bm.client {
+					continue // 跳过发送者，避免回显
+				}
 				select {
 				case client.send <- sanitized:
 				default:
