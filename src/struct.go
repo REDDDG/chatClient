@@ -3,6 +3,7 @@ package main
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -13,10 +14,11 @@ type User struct {
 }
 
 type Message struct {
-	RoomID     int    `json:"roomId"`
-	SenderID   int    `json:"senderId"`
-	SenderName string `json:"senderName"`
-	Text       string `json:"text"`
+	RoomID     int       `json:"roomId"`
+	SenderID   int       `json:"senderId"`
+	SenderName string    `json:"senderName"`
+	Text       string    `json:"text"`
+	CreatedAt  time.Time `json:"createdAt"`
 }
 
 type Friends struct {

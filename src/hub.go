@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
+	"time"
 )
 
 func newHub() *Hub {
@@ -35,6 +37,7 @@ func (h *Hub) run() {
 			// 服务端覆盖身份，防止客户端伪造
 			msg.SenderID = bm.client.id
 			msg.SenderName = bm.client.userName
+			msg.CreatedAt = time.Now()
 			if len(msg.Text) > 500 {
 				log.Printf("client %d sent message exceeding 500 chars", bm.client.id)
 				continue
@@ -54,6 +57,13 @@ func (h *Hub) run() {
 			if !allowed {
 				log.Printf("client %d attempted to send to unauthorized room %d", bm.client.id, msg.RoomID)
 				continue
+			}
+			// 消息持久化到 MySQL
+			_, err = db.ExecContext(context.Background(),
+				"INSERT INTO messages(room_id, sender_id, sender_name, text, created_at) VALUES(?,?,?,?,?)",
+				msg.RoomID, msg.SenderID, msg.SenderName, msg.Text, msg.CreatedAt)
+			if err != nil {
+				log.Printf("failed to save message to db: %v", err)
 			}
 			h.mu.RLock()
 			roomClients := h.clientRoom[msg.RoomID]
