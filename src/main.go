@@ -165,13 +165,14 @@ func main() {
 				var friendId int
 				var roomId int
 				var friendName string
-				rows.Scan(&roomId, &friendId, &friendName)
-
+				if err := rows.Scan(&roomId, &friendId, &friendName); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+					return
+				}
 				friends = append(friends, Friends{
 					FriendId: friendId, RoomId: roomId, FriendName: friendName,
 				})
 			}
-			rows.Close()
 			if err := rows.Err(); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 				return
@@ -182,16 +183,18 @@ func main() {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 				return
 			}
+			defer rows.Close()
 			for rows.Next() {
 				var roomId int
 				var roomName string
-				rows.Scan(&roomId, &roomName)
-
+				if err := rows.Scan(&roomId, &roomName); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+					return
+				}
 				rooms = append(rooms, Rooms{
 					RoomId: roomId, RoomName: roomName,
 				})
 			}
-			rows.Close()
 			if err := rows.Err(); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 				return
