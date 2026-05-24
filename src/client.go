@@ -110,6 +110,7 @@ func serveWs(hub *Hub, c *gin.Context) {
 	rows, err := db.QueryContext(c.Request.Context(), "select roomId from chatfriends where userId =?", userId)
 	if err != nil {
 		log.Println(err)
+		conn.Close()
 		return
 	}
 	client := &Client{hub: hub, conn: conn, send: make(chan []byte), id: userId, userName: userName, roomList: make([]int, 0)}
@@ -123,6 +124,8 @@ func serveWs(hub *Hub, c *gin.Context) {
 	rows, err = db.QueryContext(c.Request.Context(), "select roomId from userhave where userId =?", userId)
 	if err != nil {
 		log.Println(err)
+		client.hub.unregister <- client
+		conn.Close()
 		return
 	}
 	for rows.Next() {
