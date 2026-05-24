@@ -171,6 +171,11 @@ func main() {
 					FriendId: friendId, RoomId: roomId, FriendName: friendName,
 				})
 			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+				return
+			}
 			var rooms []Rooms
 			rows, err = db.QueryContext(c.Request.Context(), "select roomId,roomName from userhave where userId = ?", id)
 			if err != nil {
@@ -185,6 +190,11 @@ func main() {
 				rooms = append(rooms, Rooms{
 					RoomId: roomId, RoomName: roomName,
 				})
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+				return
 			}
 			c.JSON(http.StatusOK, gin.H{"friends": friends, "rooms": rooms})
 		})
