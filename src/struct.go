@@ -2,6 +2,7 @@ package main
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/gorilla/websocket"
 )
@@ -44,13 +45,16 @@ type Hub struct {
 }
 
 type Client struct {
-	hub *Hub
-
-	conn *websocket.Conn
-
-	send chan []byte
-
-	id int
-
+	hub      *Hub
+	conn     *websocket.Conn
+	send     chan []byte
+	id       int
 	roomList []int
+	userName string
+	closed   int32
+}
+
+// tryClose 原子地关闭 send channel，确保只关闭一次
+func (c *Client) tryClose() bool {
+	return atomic.CompareAndSwapInt32(&c.closed, 0, 1)
 }

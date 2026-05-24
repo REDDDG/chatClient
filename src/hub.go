@@ -22,12 +22,26 @@ func (h *Hub) run() {
 			h.clients[client] = true
 		case client := <-h.unregister:
 			delete(h.clients, client)
-			close(client.send)
+			if client.tryClose() {
+				close(client.send)
+			}
 		case bm := <-h.broadcast:
 			var msg Message
 			err := json.Unmarshal(bm.message, &msg)
 			if err != nil {
 				log.Println("error:", err)
+				continue
+			}
+			// 服务端覆盖身份，防止客户端伪造
+			msg.SenderID = bm.client.id
+			msg.SenderName = bm.client.userName
+			if len(msg.Text) > 500 {
+				log.Printf("client %d sent message exceeding 500 chars", bm.client.id)
+				continue
+			}
+			sanitized, err := json.Marshal(msg)
+			if err != nil {
+				log.Println("error marshaling message:", err)
 				continue
 			}
 			allowed := false
@@ -50,7 +64,7 @@ func (h *Hub) run() {
 			h.mu.RUnlock()
 			for _, client := range clients {
 				select {
-				case client.send <- bm.message:
+				case client.send <- sanitized:
 				default:
 					h.mu.Lock()
 					for _, roomId := range client.roomList {
@@ -62,7 +76,9 @@ func (h *Hub) run() {
 					client.roomList = nil
 					h.mu.Unlock()
 					delete(h.clients, client)
-					close(client.send)
+					if client.tryClose() {
+						close(client.send)
+					}
 				}
 			}
 		}
