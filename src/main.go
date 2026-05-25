@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -285,7 +284,7 @@ func main() {
 			}
 			online := make(map[int]bool)
 			for _, uid := range req.Ids {
-				n, err := rdb.Exists(c.Request.Context(), fmt.Sprintf("online:%d", uid)).Result()
+				n, err := rdb.Exists(c.Request.Context(), strconv.Itoa(uid)).Result()
 				if err != nil {
 					online[uid] = false
 					continue
