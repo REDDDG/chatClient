@@ -15,6 +15,7 @@ type User struct {
 }
 
 type Message struct {
+	ID         int64     `json:"id"`
 	RoomID     int       `json:"roomId"`
 	SenderID   int       `json:"senderId"`
 	SenderName string    `json:"senderName"`

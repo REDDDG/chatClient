@@ -217,6 +217,7 @@ func main() {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "login required"})
 				return
 			}
+			userID := uid.(int)
 			roomID, err := strconv.Atoi(c.Query("roomId"))
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid roomId"})
@@ -235,35 +236,71 @@ func main() {
 				c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 				return
 			}
-			var rows *sql.Rows
 			before := c.Query("before")
-			if before == "" {
-				rows, err = db.QueryContext(c.Request.Context(),
-					"SELECT room_id, sender_id, sender_name, text, created_at FROM messages WHERE room_id=? ORDER BY created_at DESC LIMIT ?",
-					roomID, limit)
-			} else {
+			msgType := c.Query("type")
+
+			var rows *sql.Rows
+			var unreadCount int
+
+			if before != "" {
+				// 翻历史消息：跳过未读逻辑
 				beforeTime, parseErr := time.Parse(time.RFC3339Nano, before)
 				if parseErr != nil {
 					c.JSON(http.StatusBadRequest, gin.H{"error": "invalid before format"})
 					return
 				}
 				rows, err = db.QueryContext(c.Request.Context(),
-					"SELECT room_id, sender_id, sender_name, text, created_at FROM messages WHERE room_id=? AND created_at < ? ORDER BY created_at DESC LIMIT ?",
+					"SELECT id, room_id, sender_id, sender_name, text, created_at FROM messages WHERE room_id=? AND created_at < ? ORDER BY created_at DESC LIMIT ?",
 					roomID, beforeTime, limit)
+			} else if msgType == "unread" {
+				// 增量加载未读消息
+				var firstUnreadMsgID int64
+				err = db.QueryRowContext(c.Request.Context(),
+					"SELECT first_unread_msg_id, unread_count FROM user_unread WHERE user_id=? AND room_id=?",
+					userID, roomID).Scan(&firstUnreadMsgID, &unreadCount)
+				if err != nil || unreadCount == 0 {
+					c.JSON(http.StatusOK, gin.H{"messages": []Message{}, "unreadCount": 0})
+					return
+				}
+				afterIDStr := c.Query("afterId")
+				if afterIDStr == "" {
+					rows, err = db.QueryContext(c.Request.Context(),
+						"SELECT id, room_id, sender_id, sender_name, text, created_at FROM messages WHERE room_id=? AND id >= ? ORDER BY id ASC LIMIT ?",
+						roomID, firstUnreadMsgID, limit)
+				} else {
+					afterID, parseErr := strconv.ParseInt(afterIDStr, 10, 64)
+					if parseErr != nil {
+						c.JSON(http.StatusBadRequest, gin.H{"error": "invalid afterId"})
+						return
+					}
+					rows, err = db.QueryContext(c.Request.Context(),
+						"SELECT id, room_id, sender_id, sender_name, text, created_at FROM messages WHERE room_id=? AND id > ? ORDER BY id ASC LIMIT ?",
+						roomID, afterID, limit)
+				}
+			} else {
+				// 默认：最近 limit 条
+				rows, err = db.QueryContext(c.Request.Context(),
+					"SELECT id, room_id, sender_id, sender_name, text, created_at FROM messages WHERE room_id=? ORDER BY created_at DESC LIMIT ?",
+					roomID, limit)
 			}
+
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 				return
 			}
 			defer rows.Close()
 			var messages []Message
+			var lastID int64
 			for rows.Next() {
 				var m Message
-				if scanErr := rows.Scan(&m.RoomID, &m.SenderID, &m.SenderName, &m.Text, &m.CreatedAt); scanErr != nil {
+				if scanErr := rows.Scan(&m.ID, &m.RoomID, &m.SenderID, &m.SenderName, &m.Text, &m.CreatedAt); scanErr != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 					return
 				}
 				messages = append(messages, m)
+				if m.ID > lastID {
+					lastID = m.ID
+				}
 			}
 			if rows.Err() != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
@@ -272,7 +309,28 @@ func main() {
 			if messages == nil {
 				messages = []Message{}
 			}
-			c.JSON(http.StatusOK, gin.H{"messages": messages})
+
+			// 更新已读状态
+			if msgType == "unread" && len(messages) > 0 {
+				remaining := unreadCount - len(messages)
+				if remaining < 0 {
+					remaining = 0
+				}
+				newFirstUnread := lastID + 1
+				if remaining == 0 {
+					newFirstUnread = 0
+				}
+				_, _ = db.ExecContext(c.Request.Context(),
+					`INSERT INTO user_unread (user_id, room_id, first_unread_msg_id, unread_count)
+					 VALUES (?, ?, ?, ?)
+					 ON DUPLICATE KEY UPDATE
+					     first_unread_msg_id = VALUES(first_unread_msg_id),
+					     unread_count = VALUES(unread_count)`,
+					userID, roomID, newFirstUnread, remaining)
+				c.JSON(http.StatusOK, gin.H{"messages": messages, "unreadCount": remaining})
+			} else {
+				c.JSON(http.StatusOK, gin.H{"messages": messages})
+			}
 		})
 		api.POST("/online-status", func(c *gin.Context) {
 			session := sessions.Default(c)
@@ -297,6 +355,17 @@ func main() {
 				online[uid] = n > 0
 			}
 			c.JSON(http.StatusOK, gin.H{"online": online})
+		})
+		// 无需登录：按用户 ID 获取头像
+		api.GET("/avatar", func(c *gin.Context) {
+			userID, err := strconv.Atoi(c.Query("id"))
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"avatar": ""})
+				return
+			}
+			var avatar string
+			db.QueryRowContext(c.Request.Context(), "SELECT avatar FROM user WHERE id=?", userID).Scan(&avatar)
+			c.JSON(http.StatusOK, gin.H{"avatar": avatar})
 		})
 		api.POST("/avatar", func(c *gin.Context) {
 			session := sessions.Default(c)

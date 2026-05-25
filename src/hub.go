@@ -59,11 +59,54 @@ func (h *Hub) run() {
 				continue
 			}
 			// 消息持久化到 MySQL
-			_, err = db.ExecContext(context.Background(),
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			result, err := db.ExecContext(ctx,
 				"INSERT INTO messages(room_id, sender_id, sender_name, text, created_at) VALUES(?,?,?,?,?)",
 				msg.RoomID, msg.SenderID, msg.SenderName, msg.Text, msg.CreatedAt)
+			cancel()
 			if err != nil {
 				log.Printf("failed to save message to db: %v", err)
+			} else {
+				msg.ID, _ = result.LastInsertId()
+				// 更新未读计数：查询房间所有成员
+				ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+				rows, err := db.QueryContext(ctx2,
+					"SELECT userId FROM chatfriends WHERE roomId=? UNION SELECT userId FROM userhave WHERE roomId=?",
+					msg.RoomID, msg.RoomID)
+				if err != nil {
+					log.Printf("failed to query room members: %v", err)
+				} else {
+					for rows.Next() {
+						var memberID int
+						if scanErr := rows.Scan(&memberID); scanErr != nil {
+							continue
+						}
+						if memberID == msg.SenderID {
+							// 发送者：确保记录存在，first_unread_msg_id 不为 0
+							_, _ = db.ExecContext(ctx2,
+								`INSERT INTO user_unread (user_id, room_id, first_unread_msg_id, unread_count)
+								 VALUES (?, ?, ?, 0)
+								 ON DUPLICATE KEY UPDATE
+								     first_unread_msg_id = IF(first_unread_msg_id = 0, VALUES(first_unread_msg_id), first_unread_msg_id)`,
+								memberID, msg.RoomID, msg.ID)
+						} else {
+							// 其他成员：未读计数 +1
+							_, _ = db.ExecContext(ctx2,
+								`INSERT INTO user_unread (user_id, room_id, first_unread_msg_id, unread_count)
+								 VALUES (?, ?, ?, 1)
+								 ON DUPLICATE KEY UPDATE
+								     unread_count = unread_count + 1,
+								     first_unread_msg_id = IF(first_unread_msg_id = 0, VALUES(first_unread_msg_id), first_unread_msg_id)`,
+								memberID, msg.RoomID, msg.ID)
+						}
+					}
+					rows.Close()
+				}
+				cancel2()
+				// 重新序列化（msg.ID 已填充）
+				if s, err2 := json.Marshal(msg); err2 == nil {
+					sanitized = s
+				}
 			}
 			h.mu.RLock()
 			roomClients := h.clientRoom[msg.RoomID]
