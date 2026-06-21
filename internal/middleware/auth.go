@@ -19,6 +19,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		uid, ok := id.(int)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{})
+			return
 		}
 		c.Set("id", uid)
 		c.Next()

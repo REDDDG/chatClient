@@ -105,7 +105,7 @@ func Me(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"username": username, "id": c.Get("id"), "avatar": avatar})
+	c.JSON(http.StatusOK, gin.H{"username": username, "id": id, "avatar": avatar})
 }
 
 func Logout(c *gin.Context) {

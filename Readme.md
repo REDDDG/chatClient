@@ -11,3 +11,30 @@
 - 通过cookie实现登陆状态的持久化
 
 前端地址：https://github.com/REDDDG/testFront
+
+# config.json
+```json
+{
+"server": {
+"port": ":9090"
+},
+"mysql": {
+"user": "root",
+"password": "mysql12138",
+"host": "localhost",
+"port": 3306,
+"database": "goland"
+},
+"redis": {
+"addr": "localhost:6379",
+"db": 0
+},
+"session": {
+"secret": "dddg"
+},
+"cors": {
+"origin": "http://localhost:8082"
+}
+}
+```
+

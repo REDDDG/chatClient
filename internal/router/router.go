@@ -1,6 +1,7 @@
 package router
 
 import (
+	"chatClient/internal/config"
 	"chatClient/internal/handler"
 	"chatClient/internal/middleware"
 	"chatClient/internal/ws"
@@ -14,7 +15,7 @@ func Setup(hub *ws.Hub) *gin.Engine {
 	r := gin.Default()
 	r.Use(middleware.CORSConfig())
 
-	store := cookie.NewStore([]byte("dddg"))
+	store := cookie.NewStore([]byte(config.Cfg.Session.Secret))
 	r.Use(sessions.Sessions("mysession", store))
 
 	r.Static("/uploads", "./uploads")
