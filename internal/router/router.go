@@ -25,14 +25,19 @@ func Setup(hub *ws.Hub) *gin.Engine {
 	{
 		api.POST("/register", handler.Register)
 		api.POST("/login", handler.Login)
-		api.GET("/me", handler.Me)
 		api.POST("/logout", handler.Logout)
-		api.GET("/rooms", handler.Rooms)
-		api.GET("/messages", handler.Messages)
-		api.POST("/online-status", handler.OnlineStatus)
-		api.GET("/avatar", handler.GetAvatar)
-		api.POST("/avatar", handler.UploadAvatar)
-		api.PUT("/profile", handler.UpdateProfile)
+
+		auth := api.Group("")
+		auth.Use(middleware.AuthMiddleware())
+		{
+			auth.GET("/me", handler.Me)
+			auth.GET("/rooms", handler.Rooms)
+			auth.GET("/messages", handler.Messages)
+			auth.POST("/online-status", handler.OnlineStatus)
+			auth.GET("/avatar", handler.GetAvatar)
+			auth.POST("/avatar", handler.UploadAvatar)
+			auth.PUT("/profile", handler.UpdateProfile)
+		}
 	}
 
 	return r

@@ -10,13 +10,11 @@ import (
 	"chatClient/internal/database"
 	"chatClient/internal/model"
 
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
 func Rooms(c *gin.Context) {
-	session := sessions.Default(c)
-	id := session.Get("id")
+	id, _ := c.Get("id")
 	log.Println(id)
 	if id == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "login failed"})
@@ -71,8 +69,7 @@ func Rooms(c *gin.Context) {
 }
 
 func Messages(c *gin.Context) {
-	session := sessions.Default(c)
-	uid := session.Get("id")
+	uid, _ := c.Get("id")
 	if uid == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "login required"})
 		return
@@ -189,11 +186,6 @@ func Messages(c *gin.Context) {
 }
 
 func OnlineStatus(c *gin.Context) {
-	session := sessions.Default(c)
-	if session.Get("id") == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "login required"})
-		return
-	}
 	var req struct {
 		Ids []int `json:"ids"`
 	}

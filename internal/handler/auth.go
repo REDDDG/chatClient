@@ -99,18 +99,13 @@ func Login(c *gin.Context) {
 }
 
 func Me(c *gin.Context) {
-	session := sessions.Default(c)
-	id := session.Get("id")
-	if id == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "login failed"})
-		return
-	}
 	var username, avatar string
+	id, _ := c.Get("id")
 	if err := database.DB.QueryRowContext(c.Request.Context(), "select username, avatar from user where id = ?", id).Scan(&username, &avatar); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"username": username, "id": id, "avatar": avatar})
+	c.JSON(http.StatusOK, gin.H{"username": username, "id": c.Get("id"), "avatar": avatar})
 }
 
 func Logout(c *gin.Context) {

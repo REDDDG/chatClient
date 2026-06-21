@@ -6,34 +6,23 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"chatClient/internal/database"
 
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func GetAvatar(c *gin.Context) {
-	userID, err := strconv.Atoi(c.Query("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"avatar": ""})
-		return
-	}
+	userID, _ := c.Get("id")
 	var avatar string
 	database.DB.QueryRowContext(c.Request.Context(), "SELECT avatar FROM user WHERE id=?", userID).Scan(&avatar)
 	c.JSON(http.StatusOK, gin.H{"avatar": avatar})
 }
 
 func UploadAvatar(c *gin.Context) {
-	session := sessions.Default(c)
-	uid := session.Get("id")
-	if uid == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "login required"})
-		return
-	}
+	uid, _ := c.Get("uid")
 	file, header, err := c.Request.FormFile("avatar")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read file"})
@@ -76,12 +65,7 @@ func UploadAvatar(c *gin.Context) {
 }
 
 func UpdateProfile(c *gin.Context) {
-	session := sessions.Default(c)
-	uid := session.Get("id")
-	if uid == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "login required"})
-		return
-	}
+	uid, _ := c.Get("id")
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
