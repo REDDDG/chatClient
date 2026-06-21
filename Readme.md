@@ -19,8 +19,8 @@
 "port": ":9090"
 },
 "mysql": {
-"user": "root",
-"password": "mysql12138",
+"user": "用户名",
+"password": "密码",
 "host": "localhost",
 "port": 3306,
 "database": "goland"
@@ -30,7 +30,7 @@
 "db": 0
 },
 "session": {
-"secret": "dddg"
+"secret": "密钥"
 },
 "cors": {
 "origin": "http://localhost:8082"
