@@ -11,6 +11,7 @@ import (
 var DB *sql.DB
 
 func InitMySQL() {
+	//仅在开发时直接嵌入密码
 	dsn := "root:mysql12138@tcp(localhost:3306)/goland?parseTime=true"
 
 	var err error
